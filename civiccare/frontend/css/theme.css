@@ -1,0 +1,50 @@
+/* CivicCare shared theme — red & gold, government-portal style */
+:root {
+  --cc-red: #A31F22;
+  --cc-red-dark: #7A1418;
+  --cc-gold: #F2B705;
+  --cc-cream: #FBF6EC;
+  --cc-ink: #241C1C;
+}
+body { font-family: 'Inter', sans-serif; background: var(--cc-cream); color: var(--cc-ink); }
+.display { font-family: 'Merriweather', serif; }
+[x-cloak] { display: none !important; }
+
+/* Cards */
+.cc-card { background: #fff; border: 1px solid rgba(36,28,28,.10); border-radius: 14px; box-shadow: 0 1px 2px rgba(36,28,28,.04); }
+.cc-card-hover { transition: box-shadow .15s, border-color .15s, transform .15s; }
+.cc-card-hover:hover { border-color: rgba(163,31,34,.45); box-shadow: 0 6px 18px rgba(163,31,34,.10); transform: translateY(-1px); }
+
+/* Inputs */
+.cc-input { width: 100%; background: #fff; border: 1px solid rgba(36,28,28,.20); border-radius: 10px; padding: .6rem .8rem; font-size: .875rem; transition: border-color .15s, box-shadow .15s; }
+.cc-input:focus { outline: none; border-color: var(--cc-red); box-shadow: 0 0 0 3px rgba(163,31,34,.15); }
+.cc-label { display: block; font-size: .8rem; font-weight: 600; margin-bottom: .3rem; }
+
+/* Buttons */
+.cc-btn { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; border-radius: 10px; font-size: .875rem; font-weight: 600; padding: .6rem 1rem; transition: background .15s, box-shadow .15s, opacity .15s; }
+.cc-btn-primary { background: var(--cc-red); color: #fff; box-shadow: 0 2px 0 var(--cc-red-dark); }
+.cc-btn-primary:hover { background: var(--cc-red-dark); }
+.cc-btn-gold { background: var(--cc-gold); color: #3a2c00; }
+.cc-btn-gold:hover { filter: brightness(.95); }
+.cc-btn-ghost { background: #fff; border: 1px solid rgba(36,28,28,.2); color: var(--cc-ink); }
+.cc-btn-ghost:hover { background: #faf5ea; }
+.cc-btn-green { background: #2F7D45; color: #fff; }
+.cc-btn-green:hover { background: #266a39; }
+.cc-btn:disabled { opacity: .6; cursor: not-allowed; }
+
+/* Radio visual (the real <input type=radio> stays in the DOM, visually hidden, for keyboard + screen readers) */
+.cc-radio { width: 18px; height: 18px; border-radius: 9999px; border: 2px solid rgba(36,28,28,.35); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; transition: border-color .15s; background: #fff; }
+.cc-radio::after { content: ""; width: 8px; height: 8px; border-radius: 9999px; background: var(--cc-red); transform: scale(0); transition: transform .15s; }
+.cc-radio.on { border-color: var(--cc-red); }
+.cc-radio.on::after { transform: scale(1); }
+
+/* Down-arrow */
+.cc-chev { width: 18px; height: 18px; flex-shrink: 0; transition: transform .2s ease; color: rgba(36,28,28,.55); }
+.cc-chev.open { transform: rotate(180deg); }
+
+/* Toast */
+.cc-toast { position: fixed; bottom: 1.25rem; left: 50%; transform: translateX(-50%); background: #241C1C; color: #fff; font-size: .85rem; padding: .7rem 1.1rem; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.25); z-index: 100; border-left: 4px solid var(--cc-gold); }
+
+/* Modal */
+.cc-modal-backdrop { position: fixed; inset: 0; background: rgba(36,28,28,.55); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; padding: 1rem; z-index: 50; }
+.cc-modal { background: #fff; border-radius: 16px; width: 100%; max-height: 92vh; overflow-y: auto; box-shadow: 0 25px 60px rgba(0,0,0,.3); }

@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CivicCare — Report. Track. Resolve.</title>
+<link rel="icon" type="image/svg+xml" href="/static/assets/logo.svg">
+<script src="https://cdn.tailwindcss.com"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/theme.css">
+</head>
+<body class="min-h-screen">
+
+<div x-data="authApp()" class="min-h-screen flex flex-col">
+
+  <div class="h-1.5 w-full bg-gradient-to-r from-[#A31F22] via-[#F2B705] to-[#A31F22]"></div>
+
+  <header class="border-b-2 border-[#A31F22]/20 bg-white">
+    <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <img src="/static/assets/logo.svg" alt="CivicCare seal" class="w-12 h-12">
+        <div>
+          <span class="text-[10px] uppercase tracking-wider text-[#241C1C]/50 block">Government of Tamil Nadu</span>
+          <span class="display text-lg font-bold tracking-tight text-[#A31F22] block leading-tight">CivicCare</span>
+          <span class="text-[11px] text-[#241C1C]/50">Municipal Administration &amp; Water Supply Dept. · Civic Grievance Portal</span>
+        </div>
+      </div>
+      <span class="text-sm text-[#241C1C]/60 hidden sm:block">தமிழ்நாடு அரசு · Civic Issue Reporting</span>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-6xl mx-auto px-6 py-10 grid md:grid-cols-2 gap-12 items-start w-full">
+
+    <!-- Left: pitch + expandable priority details -->
+    <section class="pt-4">
+      <h1 class="display text-4xl md:text-5xl font-semibold leading-tight tracking-tight">
+        Report a civic issue.<br><span class="text-[#A31F22]">Watch it get fixed.</span>
+      </h1>
+      <p class="mt-4 text-[#241C1C]/70 leading-relaxed max-w-md">
+        Electricity outages, water supply faults and public-safety hazards are moved to the
+        front of the queue automatically — no waiting behind low-priority requests.
+      </p>
+
+      <p class="mt-8 mb-2 text-xs font-semibold uppercase tracking-wider text-[#241C1C]/50">How priority works — tap a row for details</p>
+      <div class="space-y-3 max-w-md">
+        <template x-for="p in priorities" :key="p.level">
+          <div class="cc-card overflow-hidden">
+            <button type="button" @click="openPriority = (openPriority === p.level ? null : p.level)"
+                    class="w-full flex items-center gap-3 p-4 text-left" :aria-expanded="openPriority === p.level">
+              <span class="w-2.5 h-2.5 rounded-full shrink-0" :class="priorityDotClass(p.level)"></span>
+              <span class="flex-1 min-w-0">
+                <span class="font-semibold text-sm block" x-text="p.level + ' priority'"></span>
+                <span class="text-xs text-[#241C1C]/60 block truncate" x-text="p.items.map(i => i.name).join(' · ')"></span>
+              </span>
+              <svg class="cc-chev" :class="openPriority === p.level && 'open'" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+            </button>
+            <ul x-show="openPriority === p.level" x-transition class="px-4 pb-4 pt-1 space-y-2 border-t border-[#241C1C]/10">
+              <template x-for="c in p.items" :key="c.name">
+                <li class="text-sm pt-2">
+                  <span class="font-medium" x-text="c.name"></span>
+                  <span class="text-[#241C1C]/60"> — </span>
+                  <span class="text-[#241C1C]/60" x-text="c.examples"></span>
+                </li>
+              </template>
+            </ul>
+          </div>
+        </template>
+      </div>
+
+      <p class="mt-6 text-xs text-[#241C1C]/50 max-w-md">
+        Demo accounts — Admin: admin@civiccare.local / Admin@123 · Citizen: citizen@civiccare.local / Citizen@123
+      </p>
+    </section>
+
+    <!-- Right: auth card -->
+    <section class="cc-card p-8 shadow-sm">
+
+      <div class="flex gap-6 border-b border-[#241C1C]/10 mb-6" role="tablist">
+        <button type="button" @click="mode = 'login'; error = ''" role="tab"
+                :class="mode === 'login' ? 'border-[#A31F22] text-[#A31F22]' : 'border-transparent text-[#241C1C]/50'"
+                class="pb-3 border-b-2 font-semibold text-sm">Log in</button>
+        <button type="button" @click="mode = 'register'; error = ''" role="tab"
+                :class="mode === 'register' ? 'border-[#A31F22] text-[#A31F22]' : 'border-transparent text-[#241C1C]/50'"
+                class="pb-3 border-b-2 font-semibold text-sm">Register</button>
+      </div>
+
+      <p x-show="error" x-cloak x-text="error" role="alert"
+         class="text-sm text-[#A31F22] bg-[#FCE8E8] border border-[#E8B4B4] rounded-lg px-3 py-2 mb-4"></p>
+
+      <!-- LOGIN -->
+      <form x-show="mode === 'login'" @submit.prevent="login" class="space-y-4">
+        <div>
+          <label class="cc-label">Email</label>
+          <input type="email" x-model="loginForm.email" required autocomplete="username" class="cc-input">
+        </div>
+        <div>
+          <label class="cc-label">Password</label>
+          <div class="relative">
+            <input :type="showPw ? 'text' : 'password'" x-model="loginForm.password" required autocomplete="current-password" class="cc-input pr-16">
+            <button type="button" @click="showPw = !showPw"
+                    class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-[#A31F22]" x-text="showPw ? 'Hide' : 'Show'"></button>
+          </div>
+        </div>
+        <button type="submit" :disabled="loading" class="cc-btn cc-btn-primary w-full">
+          <span x-show="!loading">Log in</span><span x-show="loading">Logging in…</span>
+        </button>
+        <p class="text-xs text-center text-[#241C1C]/50">You'll be taken to the citizen or admin dashboard automatically based on your account.</p>
+      </form>
+
+      <!-- REGISTER -->
+      <form x-show="mode === 'register'" x-cloak @submit.prevent="register" class="space-y-4">
+        <fieldset>
+          <legend class="cc-label">I am registering as</legend>
+          <div class="grid grid-cols-2 gap-3">
+            <template x-for="r in roles" :key="r.value">
+              <label class="cursor-pointer">
+                <input type="radio" name="role" class="sr-only" :value="r.value" x-model="registerForm.role">
+                <div class="rounded-xl border p-3 h-full transition"
+                     :class="registerForm.role === r.value ? 'border-[#A31F22] bg-[#A31F22]/5 ring-2 ring-[#A31F22]/20' : 'border-[#241C1C]/20 hover:border-[#A31F22]/40'">
+                  <div class="flex items-center gap-2">
+                    <span class="cc-radio" :class="registerForm.role === r.value && 'on'"></span>
+                    <span class="font-semibold text-sm" x-text="r.label"></span>
+                  </div>
+                  <p class="text-xs text-[#241C1C]/60 mt-1.5 leading-snug" x-text="r.desc"></p>
+                </div>
+              </label>
+            </template>
+          </div>
+        </fieldset>
+        <div>
+          <label class="cc-label">Full name</label>
+          <input type="text" x-model="registerForm.full_name" required minlength="2" class="cc-input">
+        </div>
+        <div>
+          <label class="cc-label">Email</label>
+          <input type="email" x-model="registerForm.email" required class="cc-input">
+        </div>
+        <div>
+          <label class="cc-label">Mobile number <span class="font-normal text-[#241C1C]/50">(used for SMS updates)</span></label>
+          <input type="tel" x-model="registerForm.phone" placeholder="e.g. +919876543210" class="cc-input">
+        </div>
+        <div>
+          <label class="cc-label">Password <span class="font-normal text-[#241C1C]/50">(min 6 characters)</span></label>
+          <input type="password" x-model="registerForm.password" required minlength="6" autocomplete="new-password" class="cc-input">
+        </div>
+        <button type="submit" :disabled="loading" class="cc-btn cc-btn-primary w-full">
+          <span x-show="!loading">Create account</span><span x-show="loading">Creating…</span>
+        </button>
+      </form>
+    </section>
+  </main>
+
+  <footer class="border-t border-[#241C1C]/10 bg-white">
+    <div class="max-w-6xl mx-auto px-6 py-4 text-center text-xs text-[#241C1C]/45">
+      CivicCare is an independent civic-tech demonstration platform inspired by Tamil Nadu government
+      portal design conventions. It is not affiliated with, endorsed by, or operated by the Government
+      of Tamil Nadu or any government body.
+    </div>
+  </footer>
+</div>
+
+<script src="/static/js/api.js"></script>
+<script>
+  // If js/api.js failed to load (page opened as a local file instead of through
+  // the server), show a clear message instead of a raw ReferenceError.
+  if (typeof apiRequest === "undefined") {
+    window.apiRequest = function () { throw new Error("This page is not connected to the CivicCare server. Open it via the server URL (e.g. http://localhost:8000) instead of as a local file."); };
+    window.Auth = { getToken: () => null, setToken() {}, getUser: () => null, setUser() {}, clear() {}, isLoggedIn: () => false };
+    window.CATEGORY_INFO = [];
+    window.priorityDotClass = () => "";
+  }
+</script>
+<script>
+function authApp() {
+  return {
+    mode: "login",
+    loading: false,
+    error: "",
+    showPw: false,
+    openPriority: "High",
+    priorities: [],
+    roles: [
+      { value: "citizen", label: "Citizen", desc: "Report issues and track their progress." },
+      { value: "staff",   label: "Field Staff", desc: "Handle complaints assigned to you." },
+    ],
+    loginForm: { email: "", password: "" },
+    registerForm: { role: "citizen", full_name: "", email: "", phone: "", password: "" },
+
+    init() {
+      this.priorities = ["High", "Medium", "Low"].map((level) => ({
+        level,
+        items: CATEGORY_INFO.filter((c) => c.priority === level),
+      }));
+      if (Auth.isLoggedIn() && Auth.getUser()) this.redirectByRole(Auth.getUser().role);
+    },
+
+    // Login decides the dashboard: admin/staff -> /admin, citizen -> /citizen
+    redirectByRole(role) {
+      window.location.href = (role === "admin" || role === "staff") ? "/admin" : "/citizen";
+    },
+
+    async login() {
+      this.error = ""; this.loading = true;
+      try {
+        const data = await apiRequest("/auth/login", { method: "POST", body: this.loginForm, auth: false });
+        Auth.setToken(data.access_token);
+        Auth.setUser(data.user);
+        this.redirectByRole(data.user.role);
+      } catch (e) {
+        this.error = e.message;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async register() {
+      this.error = ""; this.loading = true;
+      try {
+        const body = { ...this.registerForm, phone: this.registerForm.phone || null };
+        const data = await apiRequest("/auth/register", { method: "POST", body, auth: false });
+        Auth.setToken(data.access_token);
+        Auth.setUser(data.user);
+        this.redirectByRole(data.user.role);
+      } catch (e) {
+        this.error = e.message;
+      } finally {
+        this.loading = false;
+      }
+    }
+  };
+}
+</script>
+</body>
+</html>

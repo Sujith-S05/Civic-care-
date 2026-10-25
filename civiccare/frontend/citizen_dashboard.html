@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CivicCare — My Complaints</title>
+<link rel="icon" type="image/svg+xml" href="/static/assets/logo.svg">
+<script src="https://cdn.tailwindcss.com"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/theme.css">
+</head>
+<body class="min-h-screen">
+
+<div x-data="citizenApp()" x-init="init()" class="min-h-screen flex flex-col">
+
+  <div class="h-1.5 w-full bg-gradient-to-r from-[#A31F22] via-[#F2B705] to-[#A31F22]"></div>
+
+  <header class="border-b-2 border-[#A31F22]/20 bg-white sticky top-0 z-40">
+    <div class="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <img src="/static/assets/logo.svg" alt="CivicCare seal" class="w-10 h-10">
+        <div>
+          <span class="text-[9px] uppercase tracking-wider text-[#241C1C]/50 block">Govt. of Tamil Nadu</span>
+          <span class="display text-base font-bold text-[#A31F22] block leading-tight">CivicCare</span>
+          <span class="text-[10px] uppercase tracking-wider text-[#241C1C]/50">Citizen Portal</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-4">
+        <span class="text-sm text-[#241C1C]/70 hidden sm:block" x-text="user?.full_name"></span>
+        <button @click="logout()" class="cc-btn cc-btn-ghost !py-1.5 !px-3 text-xs">Log out</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-5xl mx-auto px-6 py-8 w-full">
+
+    <div class="flex items-center justify-between mb-6 gap-3 flex-wrap">
+      <div>
+        <h1 class="display text-2xl font-semibold">My Complaints</h1>
+        <p class="text-sm text-[#241C1C]/60">Track every issue you've reported, from submission to resolution.</p>
+      </div>
+      <button @click="openForm()" class="cc-btn cc-btn-primary">+ New Complaint</button>
+    </div>
+
+    <!-- Status summary -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      <div class="cc-card p-4"><p class="text-xs text-[#241C1C]/50">Total filed</p><p class="text-2xl font-semibold display" x-text="complaints.length"></p></div>
+      <div class="cc-card p-4 border-l-4 !border-l-[#2F7D45]"><p class="text-xs text-[#2F6B2F]">Resolved</p><p class="text-2xl font-semibold display text-[#2F6B2F]" x-text="resolvedCount"></p></div>
+      <div class="cc-card p-4 border-l-4 !border-l-[#F2B705]"><p class="text-xs text-[#8A6A00]">In progress</p><p class="text-2xl font-semibold display text-[#8A6A00]" x-text="inProgressCount"></p></div>
+      <div class="cc-card p-4"><p class="text-xs text-[#241C1C]/50">With photo</p><p class="text-2xl font-semibold display" x-text="withPhotoCount"></p></div>
+    </div>
+
+    <!-- Filter by progress (radio-style segmented control) -->
+    <fieldset class="mb-5">
+      <legend class="sr-only">Filter complaints</legend>
+      <div class="inline-flex rounded-xl bg-white border border-[#241C1C]/15 p-1 gap-1">
+        <template x-for="f in filters" :key="f.value">
+          <label class="cursor-pointer">
+            <input type="radio" name="listFilter" class="sr-only" :value="f.value" x-model="listFilter">
+            <span class="block text-xs font-semibold px-3 py-1.5 rounded-lg transition"
+                  :class="listFilter === f.value ? 'bg-[#A31F22] text-white' : 'text-[#241C1C]/70 hover:bg-[#FBF6EC]'" x-text="f.label"></span>
+          </label>
+        </template>
+      </div>
+    </fieldset>
+
+    <p x-show="loading" class="text-sm text-[#241C1C]/50">Loading complaints…</p>
+    <p x-show="loadError" x-text="loadError" class="text-sm text-[#A31F22] bg-[#FCE8E8] border border-[#E8B4B4] rounded-lg px-3 py-2 mb-4"></p>
+
+    <div x-show="!loading && !loadError && complaints.length === 0" class="cc-card border-dashed p-10 text-center text-sm text-[#241C1C]/60">
+      No complaints yet. Click <strong>+ New Complaint</strong> to report your first civic issue.
+    </div>
+    <div x-show="!loading && complaints.length > 0 && visibleComplaints.length === 0" class="cc-card border-dashed p-8 text-center text-sm text-[#241C1C]/60">
+      No complaints match this filter.
+    </div>
+
+    <div class="grid gap-3">
+      <template x-for="c in visibleComplaints" :key="c.id">
+        <div class="cc-card cc-card-hover p-4 flex items-start gap-4 cursor-pointer" @click="tracking = c">
+          <img x-show="c.image_url" :src="c.image_url" alt="" class="w-16 h-16 rounded-lg object-cover border border-[#241C1C]/10 shrink-0">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2 flex-wrap mb-1">
+              <span :class="priorityBadgeClass(c.priority)" class="text-xs font-semibold px-2 py-0.5 rounded-full border" x-text="c.priority"></span>
+              <span :class="statusBadgeClass(c.status)" class="text-xs font-semibold px-2 py-0.5 rounded-full" x-text="c.status"></span>
+              <span class="text-xs text-[#241C1C]/40" x-text="'#' + c.id"></span>
+            </div>
+            <p class="font-semibold truncate" x-text="c.title"></p>
+            <p class="text-sm text-[#241C1C]/60 truncate" x-text="`${c.category} · ${c.location}`"></p>
+          </div>
+          <div class="text-right shrink-0 hidden sm:block">
+            <p class="text-xs text-[#241C1C]/40" x-text="formatDate(c.created_at)"></p>
+            <p class="text-xs text-[#A31F22] font-semibold mt-1">Track →</p>
+          </div>
+        </div>
+      </template>
+    </div>
+  </main>
+
+  <!-- ============ NEW COMPLAINT MODAL ============ -->
+  <div x-show="showForm" x-cloak class="cc-modal-backdrop" @keydown.escape.window="showForm = false">
+    <div class="cc-modal max-w-lg p-6" @click.outside="showForm = false">
+      <div class="flex items-start justify-between mb-1">
+        <h2 class="display text-lg font-semibold">Submit a Complaint</h2>
+        <button type="button" @click="showForm = false" class="text-[#241C1C]/50 hover:text-[#241C1C] text-xl leading-none" aria-label="Close">&times;</button>
+      </div>
+      <p class="text-xs text-[#241C1C]/60 mb-4">Priority is assigned automatically from the category you choose.</p>
+
+      <p x-show="formError" x-cloak x-text="formError" role="alert" class="text-sm text-[#A31F22] bg-[#FCE8E8] border border-[#E8B4B4] rounded-lg px-3 py-2 mb-4"></p>
+
+      <form @submit.prevent="submitComplaint" class="space-y-4">
+
+        <!-- Category: dropdown with radio options + per-option down-arrow details -->
+        <fieldset class="relative" x-data="{ open: false, expanded: null }">
+          <legend class="cc-label">Category</legend>
+          <button type="button" @click="open = !open" :aria-expanded="open"
+                  class="cc-input flex items-center justify-between gap-2 text-left" :class="open && '!border-[#A31F22]'">
+            <span x-show="!form.category" class="text-[#241C1C]/45">Select a category…</span>
+            <span x-show="form.category" class="flex items-center gap-2 min-w-0">
+              <span class="font-medium truncate" x-text="form.category"></span>
+              <span :class="priorityBadgeClass(selectedCategory?.priority)" class="text-[10px] font-semibold px-2 py-0.5 rounded-full border" x-text="selectedCategory ? selectedCategory.priority + ' priority' : ''"></span>
+            </span>
+            <svg class="cc-chev" :class="open && 'open'" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+          </button>
+
+          <div x-show="open" x-cloak x-transition @click.outside="open = false"
+               class="absolute z-20 left-0 right-0 mt-2 bg-white border border-[#241C1C]/15 rounded-xl shadow-xl max-h-72 overflow-y-auto">
+            <template x-for="cat in categories" :key="cat.name">
+              <div class="border-b border-[#241C1C]/8 last:border-0">
+                <div class="flex items-center">
+                  <label class="flex items-center gap-3 flex-1 min-w-0 px-3 py-2.5 cursor-pointer hover:bg-[#FBF6EC]">
+                    <input type="radio" name="category" class="sr-only" :value="cat.name" x-model="form.category" @change="open = false">
+                    <span class="cc-radio" :class="form.category === cat.name && 'on'"></span>
+                    <span class="text-sm font-medium truncate flex-1" x-text="cat.name"></span>
+                    <span :class="priorityBadgeClass(cat.priority)" class="text-[10px] font-semibold px-2 py-0.5 rounded-full border" x-text="cat.priority"></span>
+                  </label>
+                  <button type="button" @click="expanded = (expanded === cat.name ? null : cat.name)"
+                          class="px-3 py-2.5 hover:bg-[#FBF6EC]" :aria-label="'Show details for ' + cat.name" :aria-expanded="expanded === cat.name">
+                    <svg class="cc-chev" :class="expanded === cat.name && 'open'" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                  </button>
+                </div>
+                <div x-show="expanded === cat.name" x-transition class="px-4 pb-3 -mt-1 text-xs text-[#241C1C]/65 leading-relaxed">
+                  <span class="font-semibold text-[#241C1C]/80">Typical issues:</span> <span x-text="cat.examples"></span>
+                </div>
+              </div>
+            </template>
+          </div>
+        </fieldset>
+
+        <div>
+          <label class="cc-label">Title</label>
+          <input type="text" x-model="form.title" required minlength="3" maxlength="150" placeholder="Short summary of the problem" class="cc-input">
+        </div>
+        <div>
+          <label class="cc-label">Location</label>
+          <input type="text" x-model="form.location" required minlength="3" placeholder="Street, area / landmark" class="cc-input">
+        </div>
+        <div>
+          <label class="cc-label">Description</label>
+          <textarea x-model="form.description" required minlength="10" rows="4" placeholder="Describe what's wrong and since when" class="cc-input"></textarea>
+        </div>
+        <div>
+          <label class="cc-label">Photo of the issue <span class="font-normal text-[#241C1C]/50">(optional · JPEG/PNG/WEBP, max 5 MB)</span></label>
+          <input type="file" accept="image/jpeg,image/png,image/webp" @change="onImageSelected($event)"
+                 class="cc-input !p-2 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-[#A31F22] file:text-white file:text-xs file:font-semibold">
+          <img x-show="imagePreview" :src="imagePreview" alt="Preview" class="mt-2 h-28 rounded-lg border border-[#241C1C]/10 object-cover">
+        </div>
+
+        <div class="flex gap-3 pt-2">
+          <button type="button" @click="showForm = false" class="cc-btn cc-btn-ghost flex-1">Cancel</button>
+          <button type="submit" :disabled="submitting" class="cc-btn cc-btn-primary flex-1">
+            <span x-show="!submitting">Submit complaint</span><span x-show="submitting">Submitting…</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ TRACKING MODAL ============ -->
+  <div x-show="tracking" x-cloak class="cc-modal-backdrop" @keydown.escape.window="tracking = null">
+    <div class="cc-modal max-w-lg p-6" @click.outside="tracking = null">
+      <template x-if="tracking">
+        <div x-data="{ historyOpen: true }">
+          <div class="flex items-start justify-between gap-3 mb-1">
+            <h2 class="display text-lg font-semibold" x-text="tracking.title"></h2>
+            <span :class="statusBadgeClass(tracking.status)" class="text-xs font-semibold px-2 py-1 rounded-full shrink-0" x-text="tracking.status"></span>
+          </div>
+          <p class="text-xs text-[#241C1C]/50 mb-4" x-text="`#${tracking.id} · ${tracking.category} · ${tracking.location}`"></p>
+
+          <!-- Progress tracker -->
+          <div x-show="tracking.status !== 'Rejected'" class="mb-5">
+            <ol class="flex items-start">
+              <template x-for="(s, i) in steps" :key="s">
+                <li class="flex-1 flex flex-col items-center relative">
+                  <div x-show="i > 0" class="absolute top-3 right-1/2 w-full h-0.5" :class="i <= stepIndex(tracking.status) ? 'bg-[#A31F22]' : 'bg-stone-200'"></div>
+                  <span class="relative z-10 w-6 h-6 rounded-full text-[11px] font-bold flex items-center justify-center"
+                        :class="i <= stepIndex(tracking.status) ? 'bg-[#A31F22] text-white' : 'bg-stone-200 text-stone-500'"
+                        x-text="i < stepIndex(tracking.status) ? '✓' : i + 1"></span>
+                  <span class="text-[10px] mt-1 text-center leading-tight" :class="i <= stepIndex(tracking.status) ? 'text-[#241C1C] font-semibold' : 'text-[#241C1C]/45'" x-text="s"></span>
+                </li>
+              </template>
+            </ol>
+          </div>
+          <p x-show="tracking.status === 'Rejected'" class="mb-4 text-sm text-[#A31F22] bg-[#FCE8E8] border border-[#E8B4B4] rounded-lg px-3 py-2">This complaint was rejected. See the history below for the reason.</p>
+
+          <img x-show="tracking.image_url" :src="tracking.image_url" alt="Complaint photo" class="w-full max-h-56 object-cover rounded-lg mb-4 border border-[#241C1C]/10">
+          <p class="text-sm text-[#241C1C]/80 mb-4" x-text="tracking.description"></p>
+
+          <div x-show="tracking.assigned_staff_name" class="text-sm mb-4 cc-card p-3">
+            <span class="text-[#241C1C]/50">Assigned to:</span> <span class="font-semibold" x-text="tracking.assigned_staff_name"></span>
+          </div>
+          <div x-show="tracking.resolution_notes" class="text-sm mb-4 rounded-lg bg-[#EAF3EA] border border-[#BFDCC0] p-3">
+            <span class="font-semibold text-[#2F6B2F]">Resolution:</span> <span x-text="tracking.resolution_notes"></span>
+          </div>
+
+          <!-- History (collapsible with down arrow) -->
+          <button type="button" @click="historyOpen = !historyOpen" class="w-full flex items-center justify-between py-2 border-t border-[#241C1C]/10">
+            <span class="text-sm font-semibold">History <span class="text-[#241C1C]/45 font-normal" x-text="'(' + tracking.history.length + ')'"></span></span>
+            <svg class="cc-chev" :class="historyOpen && 'open'" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+          </button>
+          <ol x-show="historyOpen" x-transition class="space-y-4 border-l-2 border-[#A31F22]/20 pl-4 mt-2 ml-1">
+            <template x-for="(h, i) in tracking.history" :key="i">
+              <li class="relative">
+                <span class="absolute -left-[22px] top-1 w-2.5 h-2.5 rounded-full bg-[#A31F22]"></span>
+                <p class="text-sm font-semibold" x-text="h.status"></p>
+                <p class="text-xs text-[#241C1C]/60" x-text="h.note || ''"></p>
+                <p class="text-xs text-[#241C1C]/40" x-text="formatDate(h.timestamp)"></p>
+              </li>
+            </template>
+          </ol>
+
+          <button @click="tracking = null" class="cc-btn cc-btn-ghost w-full mt-5">Close</button>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <div x-show="toast" x-cloak x-transition class="cc-toast" x-text="toast"></div>
+</div>
+
+<script src="/static/js/api.js"></script>
+<script>
+  if (typeof apiRequest === "undefined") {
+    window.apiRequest = function () { throw new Error("This page is not connected to the CivicCare server. Open it via the server URL (e.g. http://localhost:8000) instead of as a local file."); };
+    window.Auth = { getToken: () => null, setToken() {}, getUser: () => null, setUser() {}, clear() {}, isLoggedIn: () => false };
+    window.requireRole = () => null;
+    window.validateSession = () => Promise.resolve(null);
+    window.CATEGORY_INFO = [];
+    window.priorityBadgeClass = () => ""; window.statusBadgeClass = () => "";
+    window.formatDate = (d) => d || "-";
+  }
+</script>
+<script>
+function citizenApp() {
+  return {
+    user: null,
+    complaints: [],
+    loading: true,
+    loadError: "",
+    showForm: false,
+    submitting: false,
+    formError: "",
+    tracking: null,
+    toast: "",
+    listFilter: "all",
+    filters: [
+      { value: "all", label: "All" },
+      { value: "progress", label: "In progress" },
+      { value: "resolved", label: "Resolved" },
+    ],
+    steps: ["Submitted", "Verified", "Assigned", "In Progress", "Resolved"],
+    categories: CATEGORY_INFO,
+    form: { category: "", title: "", location: "", description: "" },
+    imageFile: null,
+    imagePreview: null,
+
+    priorityBadgeClass, statusBadgeClass, formatDate,
+
+    get selectedCategory() { return this.categories.find((c) => c.name === this.form.category); },
+    get resolvedCount() { return this.complaints.filter((c) => c.status === "Resolved" || c.status === "Closed").length; },
+    get inProgressCount() { return this.complaints.filter((c) => !["Resolved", "Closed", "Rejected"].includes(c.status)).length; },
+    get withPhotoCount() { return this.complaints.filter((c) => c.image_url).length; },
+    get visibleComplaints() {
+      if (this.listFilter === "resolved") return this.complaints.filter((c) => ["Resolved", "Closed"].includes(c.status));
+      if (this.listFilter === "progress") return this.complaints.filter((c) => !["Resolved", "Closed", "Rejected"].includes(c.status));
+      return this.complaints;
+    },
+
+    stepIndex(status) {
+      if (status === "Closed") return this.steps.length - 1;
+      return Math.max(0, this.steps.indexOf(status));
+    },
+
+    async init() {
+      this.user = requireRole(["citizen"]);
+      await validateSession(["citizen"]);
+      this.loadComplaints();
+    },
+
+    async loadComplaints() {
+      this.loading = true; this.loadError = "";
+      try {
+        this.complaints = await apiRequest("/complaints/mine");
+      } catch (e) {
+        this.loadError = e.message;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    openForm() { this.formError = ""; this.showForm = true; },
+
+    notify(msg) { this.toast = msg; setTimeout(() => (this.toast = ""), 3500); },
+
+    async submitComplaint() {
+      this.formError = "";
+      if (!this.form.category) { this.formError = "Please choose a category."; return; }
+      this.submitting = true;
+      try {
+        const fd = new FormData();
+        fd.append("title", this.form.title);
+        fd.append("description", this.form.description);
+        fd.append("category", this.form.category);
+        fd.append("location", this.form.location);
+        if (this.imageFile) fd.append("image", this.imageFile);
+
+        const created = await apiRequest("/complaints", { method: "POST", body: fd, isForm: true });
+        this.showForm = false;
+        this.form = { category: "", title: "", location: "", description: "" };
+        this.imageFile = null; this.imagePreview = null;
+        await this.loadComplaints();
+        this.notify(`Complaint #${created.id} submitted — priority: ${created.priority}`);
+      } catch (e) {
+        this.formError = e.message;
+      } finally {
+        this.submitting = false;
+      }
+    },
+
+    onImageSelected(event) {
+      const file = event.target.files[0];
+      this.imageFile = file || null;
+      this.imagePreview = file ? URL.createObjectURL(file) : null;
+    },
+
+    logout() { Auth.clear(); window.location.href = "/"; }
+  };
+}
+</script>
+</body>
+</html>

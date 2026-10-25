@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CivicCare — Administrative Console</title>
+<link rel="icon" type="image/svg+xml" href="/static/assets/logo.svg">
+<script src="https://cdn.tailwindcss.com"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/theme.css">
+</head>
+<body class="min-h-screen">
+
+<div x-data="adminApp()" x-init="init()" class="min-h-screen flex flex-col">
+
+  <div class="h-1.5 w-full bg-gradient-to-r from-[#A31F22] via-[#F2B705] to-[#A31F22]"></div>
+
+  <header class="border-b-2 border-[#A31F22]/20 bg-white sticky top-0 z-40">
+    <div class="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <img src="/static/assets/logo.svg" alt="CivicCare seal" class="w-10 h-10">
+        <div>
+          <span class="text-[9px] uppercase tracking-wider text-[#241C1C]/50 block">Govt. of Tamil Nadu</span>
+          <span class="display text-base font-bold text-[#A31F22] block leading-tight">CivicCare</span>
+          <span class="text-[10px] uppercase tracking-wider text-[#241C1C]/50">Administrative Console</span>
+        </div>
+        <span class="text-xs bg-[#F2B705]/25 text-[#7A4E00] font-semibold px-2 py-0.5 rounded-full ml-2 capitalize" x-text="user?.role"></span>
+      </div>
+      <div class="flex items-center gap-4">
+        <span class="text-sm text-[#241C1C]/70 hidden sm:block" x-text="user?.full_name"></span>
+        <button @click="logout()" class="cc-btn cc-btn-ghost !py-1.5 !px-3 text-xs">Log out</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-6xl mx-auto px-6 py-8 w-full">
+
+    <div class="flex items-end justify-between mb-5 gap-3 flex-wrap">
+      <div>
+        <h1 class="display text-2xl font-semibold">Complaint Queue</h1>
+        <p class="text-xs text-[#241C1C]/55">Sorted by priority — High (Electricity, Water Supply, Public Safety) always comes first.</p>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+      <div class="cc-card p-4"><p class="text-xs text-[#241C1C]/50">Total complaints</p><p class="text-2xl font-semibold display" x-text="stats.total ?? '–'"></p></div>
+      <div class="cc-card p-4 border-l-4 !border-l-[#C62828]"><p class="text-xs text-[#A31F22]">High priority</p><p class="text-2xl font-semibold display text-[#A31F22]" x-text="stats.by_priority?.High ?? '–'"></p></div>
+      <div class="cc-card p-4"><p class="text-xs text-[#241C1C]/50">Awaiting verification</p><p class="text-2xl font-semibold display" x-text="stats.by_status?.Submitted ?? '–'"></p></div>
+      <div class="cc-card p-4 border-l-4 !border-l-[#F2B705]"><p class="text-xs text-[#8A6A00]">In progress</p><p class="text-2xl font-semibold display text-[#8A6A00]" x-text="stats.by_status?.['In Progress'] ?? '–'"></p></div>
+      <div class="cc-card p-4 border-l-4 !border-l-[#2F7D45]"><p class="text-xs text-[#2F6B2F]">Resolved</p><p class="text-2xl font-semibold display text-[#2F6B2F]" x-text="stats.by_status?.Resolved ?? '–'"></p></div>
+    </div>
+
+    <!-- Filters -->
+    <div class="cc-card p-3 mb-5 flex flex-wrap items-center gap-2">
+      <input type="search" x-model="search" placeholder="Search title, citizen, phone, location…" class="cc-input !w-full sm:!w-72 !py-1.5">
+
+      <!-- Status as radio pills -->
+      <fieldset class="flex flex-wrap gap-1.5">
+        <legend class="sr-only">Filter by status</legend>
+        <template x-for="s in statusOptions" :key="s.value">
+          <label class="cursor-pointer">
+            <input type="radio" name="statusFilter" class="sr-only" :value="s.value" x-model="statusFilter" @change="loadComplaints()">
+            <span class="block text-xs font-semibold px-3 py-1.5 rounded-full border transition"
+                  :class="statusFilter === s.value ? 'bg-[#A31F22] text-white border-[#A31F22]' : 'bg-white text-[#241C1C]/70 border-[#241C1C]/15 hover:border-[#A31F22]/40'" x-text="s.label"></span>
+          </label>
+        </template>
+      </fieldset>
+
+      <!-- Category dropdown (down arrow) -->
+      <div class="relative ml-auto" x-data="{ open: false }">
+        <button type="button" @click="open = !open" :aria-expanded="open"
+                class="cc-input !w-auto flex items-center gap-2 !py-1.5 text-xs font-semibold">
+          <span x-text="categoryFilter || 'All categories'"></span>
+          <svg class="cc-chev" :class="open && 'open'" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+        </button>
+        <div x-show="open" x-cloak x-transition @click.outside="open = false"
+             class="absolute right-0 z-20 mt-2 w-64 bg-white border border-[#241C1C]/15 rounded-xl shadow-xl max-h-72 overflow-y-auto">
+          <label class="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-[#FBF6EC]">
+            <input type="radio" name="categoryFilter" class="sr-only" value="" x-model="categoryFilter" @change="open = false; loadComplaints()">
+            <span class="cc-radio" :class="categoryFilter === '' && 'on'"></span><span class="text-sm">All categories</span>
+          </label>
+          <template x-for="c in categories" :key="c.name">
+            <label class="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-[#FBF6EC]">
+              <input type="radio" name="categoryFilter" class="sr-only" :value="c.name" x-model="categoryFilter" @change="open = false; loadComplaints()">
+              <span class="cc-radio" :class="categoryFilter === c.name && 'on'"></span>
+              <span class="text-sm flex-1" x-text="c.name"></span>
+              <span class="w-2 h-2 rounded-full" :class="priorityDotClass(c.priority)"></span>
+            </label>
+          </template>
+        </div>
+      </div>
+    </div>
+
+    <p x-show="loading" class="text-sm text-[#241C1C]/50">Loading…</p>
+    <p x-show="loadError" x-text="loadError" class="text-sm text-[#A31F22] bg-[#FCE8E8] border border-[#E8B4B4] rounded-lg px-3 py-2 mb-4"></p>
+
+    <!-- Complaint list -->
+    <div class="grid gap-3">
+      <template x-for="c in filteredComplaints" :key="c.id">
+        <div class="cc-card cc-card-hover p-4 cursor-pointer flex items-start gap-4" @click="openDetail(c)">
+          <img x-show="c.image_url" :src="c.image_url" alt="" class="w-16 h-16 rounded-lg object-cover border border-[#241C1C]/10 shrink-0">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2 flex-wrap mb-1">
+              <span :class="priorityBadgeClass(c.priority)" class="text-xs font-semibold px-2 py-0.5 rounded-full border" x-text="c.priority"></span>
+              <span :class="statusBadgeClass(c.status)" class="text-xs font-semibold px-2 py-0.5 rounded-full" x-text="c.status"></span>
+              <span class="text-xs text-[#241C1C]/40" x-text="'#' + c.id"></span>
+            </div>
+            <p class="font-semibold truncate" x-text="c.title"></p>
+            <p class="text-sm text-[#241C1C]/60 truncate" x-text="`${c.category} · ${c.location}`"></p>
+            <p class="text-xs text-[#241C1C]/50 truncate mt-0.5" x-text="`${c.citizen_name}${c.citizen_phone ? ' · ' + c.citizen_phone : ''}`"></p>
+          </div>
+          <div class="text-right shrink-0 hidden sm:block">
+            <p class="text-xs text-[#241C1C]/40" x-text="formatDate(c.created_at)"></p>
+            <p class="text-xs mt-1" :class="c.assigned_staff_name ? 'text-[#241C1C]/60' : 'text-[#A31F22] font-semibold'" x-text="c.assigned_staff_name ? 'Assigned: ' + c.assigned_staff_name : 'Unassigned'"></p>
+          </div>
+        </div>
+      </template>
+      <div x-show="!loading && !loadError && filteredComplaints.length === 0" class="cc-card border-dashed p-10 text-center text-sm text-[#241C1C]/60">No complaints match these filters.</div>
+    </div>
+  </main>
+
+  <!-- ============ DETAIL / ACTION MODAL ============ -->
+  <div x-show="detail" x-cloak class="cc-modal-backdrop" @keydown.escape.window="detail = null">
+    <div class="cc-modal max-w-xl p-6" @click.outside="detail = null">
+      <template x-if="detail">
+        <div x-data="{ historyOpen: false, contactOpen: true }">
+          <div class="flex items-start justify-between gap-3 mb-1">
+            <h2 class="display text-lg font-semibold" x-text="detail.title"></h2>
+            <div class="flex gap-1.5 shrink-0">
+              <span :class="priorityBadgeClass(detail.priority)" class="text-xs font-semibold px-2 py-0.5 rounded-full border" x-text="detail.priority"></span>
+              <span :class="statusBadgeClass(detail.status)" class="text-xs font-semibold px-2 py-0.5 rounded-full" x-text="detail.status"></span>
+            </div>
+          </div>
+          <p class="text-xs text-[#241C1C]/50 mb-4" x-text="`#${detail.id} · ${detail.category} · filed ${formatDate(detail.created_at)}`"></p>
+
+          <!-- Citizen & location details (collapsible) -->
+          <div class="cc-card mb-4 overflow-hidden">
+            <button type="button" @click="contactOpen = !contactOpen" class="w-full flex items-center justify-between px-3 py-2.5 bg-[#FBF6EC]">
+              <span class="text-sm font-semibold">Citizen &amp; location</span>
+              <svg class="cc-chev" :class="contactOpen && 'open'" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+            </button>
+            <dl x-show="contactOpen" x-transition class="grid grid-cols-3 gap-y-2 gap-x-3 p-3 text-sm">
+              <dt class="text-[#241C1C]/50">Name</dt><dd class="col-span-2 font-medium" x-text="detail.citizen_name"></dd>
+              <dt class="text-[#241C1C]/50">Phone</dt>
+              <dd class="col-span-2 font-medium">
+                <a x-show="detail.citizen_phone" :href="'tel:' + detail.citizen_phone" class="text-[#A31F22] underline" x-text="detail.citizen_phone"></a>
+                <span x-show="!detail.citizen_phone" class="text-[#241C1C]/45 font-normal">Not provided (no SMS can be sent)</span>
+              </dd>
+              <dt class="text-[#241C1C]/50">Location</dt><dd class="col-span-2 font-medium" x-text="detail.location"></dd>
+              <dt class="text-[#241C1C]/50">Assigned to</dt><dd class="col-span-2 font-medium" x-text="detail.assigned_staff_name || 'Not assigned yet'"></dd>
+            </dl>
+          </div>
+
+          <a x-show="detail.image_url" :href="detail.image_url" target="_blank" rel="noopener">
+            <img :src="detail.image_url" alt="Complaint photo" class="w-full max-h-64 object-cover rounded-lg mb-1 border border-[#241C1C]/10">
+            <span class="text-xs text-[#A31F22] font-semibold block mb-3">Open full photo ↗</span>
+          </a>
+          <p class="text-sm text-[#241C1C]/80 mb-4" x-text="detail.description"></p>
+          <p x-show="detail.admin_remarks" class="text-sm mb-4 rounded-lg bg-[#FDF3D6] border border-[#F0D889] p-3"><span class="font-semibold">Admin remarks:</span> <span x-text="detail.admin_remarks"></span></p>
+          <p x-show="detail.resolution_notes" class="text-sm mb-4 rounded-lg bg-[#EAF3EA] border border-[#BFDCC0] p-3"><span class="font-semibold text-[#2F6B2F]">Resolution:</span> <span x-text="detail.resolution_notes"></span></p>
+
+          <p x-show="actionError" x-cloak x-text="actionError" role="alert" class="text-sm text-[#A31F22] bg-[#FCE8E8] border border-[#E8B4B4] rounded-lg px-3 py-2 mb-4"></p>
+
+          <!-- VERIFY (admin, Submitted) -->
+          <div x-show="detail.status === 'Submitted' && user.role === 'admin'" class="cc-card p-4 mb-4">
+            <p class="text-sm font-semibold mb-3">Verify complaint</p>
+            <input type="text" x-model="verifyRemarks" placeholder="Remarks (optional)" class="cc-input mb-3">
+            <fieldset class="mb-3">
+              <legend class="cc-label">Priority</legend>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <template x-for="o in priorityOptions" :key="o.value">
+                  <label class="cursor-pointer">
+                    <input type="radio" name="overridePriority" class="sr-only" :value="o.value" x-model="overridePriority">
+                    <div class="rounded-lg border px-2.5 py-2 text-xs transition h-full"
+                         :class="overridePriority === o.value ? 'border-[#A31F22] bg-[#A31F22]/5 ring-2 ring-[#A31F22]/20' : 'border-[#241C1C]/20 hover:border-[#A31F22]/40'">
+                      <span class="flex items-center gap-1.5 font-semibold"><span class="cc-radio" :class="overridePriority === o.value && 'on'"></span><span x-text="o.value === '' ? 'Keep auto' : o.value"></span></span>
+                      <span class="block text-[#241C1C]/50 mt-1 leading-snug" x-text="o.value === '' ? ('Currently ' + detail.priority) : 'Override'"></span>
+                    </div>
+                  </label>
+                </template>
+              </div>
+            </fieldset>
+            <button @click="verify()" class="cc-btn cc-btn-primary w-full">Mark as verified</button>
+          </div>
+
+          <!-- ASSIGN (admin, Verified/Assigned) — dropdown with staff details -->
+          <div x-show="['Verified','Assigned'].includes(detail.status) && user.role === 'admin'" class="cc-card p-4 mb-4" x-data="{ open: false }">
+            <p class="text-sm font-semibold mb-3">Assign to field staff</p>
+            <div class="relative mb-3">
+              <button type="button" @click="open = !open" :aria-expanded="open" class="cc-input flex items-center justify-between gap-2 text-left">
+                <span x-show="!selectedStaffObj" class="text-[#241C1C]/45">Select staff member…</span>
+                <span x-show="selectedStaffObj" class="min-w-0">
+                  <span class="font-medium block truncate" x-text="selectedStaffObj?.full_name"></span>
+                  <span class="text-xs text-[#241C1C]/55 block truncate" x-text="selectedStaffObj?.email"></span>
+                </span>
+                <svg class="cc-chev" :class="open && 'open'" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+              </button>
+              <div x-show="open" x-cloak x-transition @click.outside="open = false" class="absolute z-20 left-0 right-0 mt-2 bg-white border border-[#241C1C]/15 rounded-xl shadow-xl max-h-56 overflow-y-auto">
+                <p x-show="staffList.length === 0" class="p-3 text-sm text-[#241C1C]/55">No staff registered yet. Staff can register from the login page.</p>
+                <template x-for="s in staffList" :key="s.id">
+                  <label class="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-[#FBF6EC] border-b border-[#241C1C]/8 last:border-0">
+                    <input type="radio" name="staffPick" class="sr-only" :value="String(s.id)" x-model="selectedStaff" @change="open = false">
+                    <span class="cc-radio" :class="selectedStaff === String(s.id) && 'on'"></span>
+                    <span class="min-w-0"><span class="text-sm font-medium block truncate" x-text="s.full_name"></span><span class="text-xs text-[#241C1C]/55 block truncate" x-text="s.email"></span></span>
+                  </label>
+                </template>
+              </div>
+            </div>
+            <button @click="assign()" class="cc-btn cc-btn-primary w-full">Assign</button>
+          </div>
+
+          <!-- IN PROGRESS -->
+          <div x-show="detail.status === 'Assigned'" class="cc-card p-4 mb-4">
+            <p class="text-sm font-semibold mb-3">Update status</p>
+            <button @click="setStatus('In Progress')" class="cc-btn cc-btn-gold w-full">Mark as In Progress</button>
+          </div>
+
+          <!-- RESOLVE -->
+          <div x-show="['Assigned','In Progress'].includes(detail.status)" class="cc-card p-4 mb-4">
+            <p class="text-sm font-semibold mb-2">Resolve complaint</p>
+            <textarea x-model="resolutionNotes" rows="3" placeholder="What was done to resolve this?" class="cc-input mb-2"></textarea>
+            <p class="text-xs text-[#241C1C]/50 mb-3">An SMS is sent to the citizen automatically once resolved.</p>
+            <button @click="resolve()" class="cc-btn cc-btn-green w-full">Mark as resolved</button>
+          </div>
+
+          <!-- HISTORY (collapsible) -->
+          <button type="button" @click="historyOpen = !historyOpen" class="w-full flex items-center justify-between py-2 border-t border-[#241C1C]/10">
+            <span class="text-sm font-semibold">History <span class="text-[#241C1C]/45 font-normal" x-text="'(' + detail.history.length + ')'"></span></span>
+            <svg class="cc-chev" :class="historyOpen && 'open'" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+          </button>
+          <ol x-show="historyOpen" x-transition class="space-y-4 border-l-2 border-[#A31F22]/20 pl-4 mt-2 ml-1">
+            <template x-for="(h, i) in detail.history" :key="i">
+              <li class="relative">
+                <span class="absolute -left-[22px] top-1 w-2.5 h-2.5 rounded-full bg-[#A31F22]"></span>
+                <p class="text-sm font-semibold" x-text="h.status"></p>
+                <p class="text-xs text-[#241C1C]/60" x-text="h.note || ''"></p>
+                <p class="text-xs text-[#241C1C]/40" x-text="formatDate(h.timestamp)"></p>
+              </li>
+            </template>
+          </ol>
+
+          <button @click="detail = null" class="cc-btn cc-btn-ghost w-full mt-5">Close</button>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <div x-show="toast" x-cloak x-transition class="cc-toast" x-text="toast"></div>
+</div>
+
+<script src="/static/js/api.js"></script>
+<script>
+  if (typeof apiRequest === "undefined") {
+    window.apiRequest = function () { throw new Error("This page is not connected to the CivicCare server. Open it via the server URL (e.g. http://localhost:8000) instead of as a local file."); };
+    window.Auth = { getToken: () => null, setToken() {}, getUser: () => null, setUser() {}, clear() {}, isLoggedIn: () => false };
+    window.requireRole = () => ({ role: "" });
+    window.validateSession = () => Promise.resolve(null);
+    window.CATEGORY_INFO = [];
+    window.priorityBadgeClass = () => ""; window.statusBadgeClass = () => ""; window.priorityDotClass = () => "";
+    window.formatDate = (d) => d || "-";
+  }
+</script>
+<script>
+function adminApp() {
+  return {
+    user: null,
+    complaints: [],
+    staffList: [],
+    stats: {},
+    loading: true,
+    loadError: "",
+    search: "",
+    statusFilter: "",
+    categoryFilter: "",
+    statusOptions: [
+      { value: "", label: "All" }, { value: "Submitted", label: "Submitted" }, { value: "Verified", label: "Verified" },
+      { value: "Assigned", label: "Assigned" }, { value: "In Progress", label: "In Progress" },
+      { value: "Resolved", label: "Resolved" }, { value: "Rejected", label: "Rejected" }, { value: "Closed", label: "Closed" },
+    ],
+    priorityOptions: [{ value: "" }, { value: "High" }, { value: "Medium" }, { value: "Low" }],
+    categories: CATEGORY_INFO,
+    detail: null,
+    verifyRemarks: "",
+    overridePriority: "",
+    selectedStaff: "",
+    resolutionNotes: "",
+    actionError: "",
+    toast: "",
+
+    priorityBadgeClass, statusBadgeClass, priorityDotClass, formatDate,
+
+    get selectedStaffObj() { return this.staffList.find((s) => String(s.id) === this.selectedStaff); },
+    get filteredComplaints() {
+      const q = this.search.trim().toLowerCase();
+      if (!q) return this.complaints;
+      return this.complaints.filter((c) =>
+        [c.title, c.citizen_name, c.citizen_phone, c.location, c.category, String(c.id)]
+          .some((v) => (v || "").toLowerCase().includes(q)));
+    },
+
+    async init() {
+      this.user = requireRole(["admin", "staff"]);
+      const validated = await validateSession(["admin", "staff"]);
+      if (validated) this.user = validated;
+      this.loadComplaints();
+      this.loadStats();
+      if (this.user && this.user.role === "admin") this.loadStaff();
+    },
+
+    async loadComplaints() {
+      this.loading = true; this.loadError = "";
+      try {
+        const params = new URLSearchParams();
+        if (this.statusFilter) params.set("status_filter", this.statusFilter);
+        if (this.categoryFilter) params.set("category_filter", this.categoryFilter);
+        const q = params.toString() ? `?${params.toString()}` : "";
+        this.complaints = await apiRequest(`/complaints${q}`);
+      } catch (e) {
+        this.loadError = e.message;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async loadStats() { try { this.stats = await apiRequest("/complaints/meta/dashboard-stats"); } catch (e) { console.error(e); } },
+    async loadStaff() { try { this.staffList = await apiRequest("/complaints/meta/staff-list"); } catch (e) { console.error(e); } },
+
+    notify(msg) { this.toast = msg; setTimeout(() => (this.toast = ""), 3500); },
+
+    openDetail(c) {
+      this.detail = c;
+      this.verifyRemarks = ""; this.overridePriority = ""; this.selectedStaff = ""; this.resolutionNotes = "";
+      this.actionError = "";
+    },
+
+    async afterAction(message) {
+      await this.loadComplaints();
+      await this.loadStats();
+      this.detail = null;
+      this.notify(message);
+    },
+
+    async verify() {
+      this.actionError = "";
+      try {
+        await apiRequest(`/complaints/${this.detail.id}/verify`, {
+          method: "PATCH",
+          body: { remarks: this.verifyRemarks || null, override_priority: this.overridePriority || null },
+        });
+        await this.afterAction("Complaint verified");
+      } catch (e) { this.actionError = e.message; }
+    },
+
+    async assign() {
+      this.actionError = "";
+      if (!this.selectedStaff) { this.actionError = "Select a staff member first."; return; }
+      try {
+        await apiRequest(`/complaints/${this.detail.id}/assign`, {
+          method: "PATCH",
+          body: { staff_id: Number(this.selectedStaff), remarks: null },
+        });
+        await this.afterAction("Complaint assigned — citizen notified by SMS");
+      } catch (e) { this.actionError = e.message; }
+    },
+
+    async setStatus(status) {
+      this.actionError = "";
+      try {
+        await apiRequest(`/complaints/${this.detail.id}/status`, { method: "PATCH", body: { status, note: null } });
+        await this.afterAction(`Status updated to ${status} — citizen notified by SMS`);
+      } catch (e) { this.actionError = e.message; }
+    },
+
+    async resolve() {
+      this.actionError = "";
+      if (this.resolutionNotes.trim().length < 5) { this.actionError = "Add resolution notes (at least 5 characters)."; return; }
+      try {
+        await apiRequest(`/complaints/${this.detail.id}/resolve`, { method: "PATCH", body: { resolution_notes: this.resolutionNotes } });
+        await this.afterAction("Complaint resolved — citizen notified by SMS");
+      } catch (e) { this.actionError = e.message; }
+    },
+
+    logout() { Auth.clear(); window.location.href = "/"; }
+  };
+}
+</script>
+</body>
+</html>

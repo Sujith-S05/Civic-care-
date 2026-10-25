@@ -1,0 +1,16 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+sqlalchemy==2.0.35
+psycopg2-binary==2.9.9
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+# bcrypt 4.1+ removed the __about__ attribute that passlib 1.7.4 reads,
+# which raises "AttributeError: module 'bcrypt' has no attribute
+# '__about__'" the moment you register/login. Pin the compatible version.
+bcrypt==4.0.1
+python-dotenv==1.0.1
+pydantic==2.9.2
+python-multipart==0.0.9
+# Optional — only needed if you configure real Twilio credentials in .env
+# for live SMS. The app runs fine without it (SMS prints to console instead).
+twilio==9.3.2

@@ -1,107 +1,238 @@
-# CivicCare — Tamil Nadu-style Civic Grievance Portal
+# 🏛️ CivicCare — Smart Community Issue Reporting and Management System
 
-Matches the flow: **Register/Login → Select Role (Citizen/Admin) → Citizen submits a
-complaint (category, location, priority, photo, description) → FastAPI backend →
-PostgreSQL → Admin verifies → assigns → updates status → resolves (SMS sent to
-citizen) → Citizen tracks status**.
+### A web-based civic grievance portal for transparent, efficient, and trackable public issue resolution.
 
-## ⚠️ Important — why buttons might look "broken"
+CivicCare is a full-stack web application that enables citizens to report civic problems such as potholes, water supply issues, electricity failures, garbage accumulation, drainage problems, and streetlight faults. Administrators can verify complaints, assign field staff, update statuses, and track resolutions through a centralized dashboard.
 
-This app has a real Python + PostgreSQL backend behind it. **It will not work if you
-just open `index.html` by double-clicking it or opening it from a downloaded file /
-Android file manager** (you'll see a URL like `content://...` or `file://...` in the
-address bar, and every button will fail with an error like *"Can't reach the CivicCare
-server"*). You must run the backend (`uvicorn main:app`) and open the app through the
-URL it serves — e.g. `http://localhost:8000` on the same machine, or
-`http://<your-computer's-LAN-IP>:8000` from your phone on the same Wi‑Fi. See **Setup**
-below.
+> 🎓 **Academic Project | Full-Stack Web Development | Tamil Nadu-Inspired UI**  
+> **Note:** CivicCare is an independent academic project and is not affiliated with or endorsed by the Government of Tamil Nadu.
 
-## What's new in this version
+---
 
-1. **Admin sees everything at a glance:** total complaint count, complaints by
-   priority/status (dashboard stat cards), each citizen's **name, phone number, and
-   location**, and a **photo of the issue** if one was uploaded.
-2. **Photo upload:** citizens can attach a photo when submitting a complaint
-   (`POST /api/complaints`, multipart form). Stored in `backend/uploads/` and served
-   at `/uploads/<filename>`.
-3. **SMS to the citizen:** whenever an admin/staff member changes a complaint's status
-   (assigned, in progress, resolved, etc.), `backend/notifications.py` sends an SMS to
-   the phone number the citizen registered with. It runs in **demo mode** by default
-   (prints the message to the server console) so you don't need a paid account to
-   demo it — fill in `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM_NUMBER`
-   in `.env` to send real SMS via Twilio.
-4. **Tamil Nadu government styling:** deep red (#A31F22) and gold (#F2B705) theme,
-   an original circular seal with a stylised temple gopuram (not the real State
-   Emblem — see note below), bilingual "Government of Tamil Nadu / தமிழ்நாடு அரசு"
-   header, and department-style labelling ("Municipal Administration & Water Supply
-   Dept. · Civic Grievance Portal").
-5. **Fixed a real CORS bug** (`allow_credentials=True` + `allow_origins=["*"]` is
-   rejected by browsers) and a **bcrypt/passlib version mismatch** that broke
-   register/login — both are why "login/register weren't working" previously.
+## 📌 Table of Contents
 
-### Why not the real Tamil Nadu government emblem?
+- [Overview](#-overview)
+- [Key Features](#-key-features)
+- [Technology Stack](#-technology-stack)
+- [System Architecture](#-system-architecture)
+- [Complaint Workflow](#-complaint-workflow)
+- [Project Structure](#-project-structure)
+- [Installation and Setup](#-installation-and-setup)
+- [Demo Credentials](#-demo-credentials)
+- [API Documentation](#-api-documentation)
+- [Security](#-security)
+- [Future Enhancements](#-future-enhancements)
+- [Author](#-author)
+- [Contributing](#-contributing)
+- [License](#-license)
 
-The State Emblem and official government logos are legally protected symbols, and
-using them on an unofficial app would make it look like an actual government service
-(which isn't appropriate for a demo/academic project). I designed an original seal in
-the same visual language (red/gold, circular seal, temple architecture) instead, and
-added a disclaimer footer on the login page. Swap `frontend/assets/logo.svg` for your
-own artwork if your institution provides an approved logo to use.
+---
 
-## Priority logic
+## 📖 Overview
 
-| Category | Priority |
+Traditional civic complaint systems may rely on phone calls, paper forms, or direct communication, making it difficult for citizens to track progress and for authorities to manage complaints efficiently.
+
+CivicCare provides a centralized platform where citizens can submit complaints online, monitor their progress, and receive status notifications. Administrators can manage complaints according to their priority and coordinate resolution through assigned staff.
+
+### 🎯 Project Objectives
+
+- Simplify the civic complaint registration process.
+- Improve transparency in complaint handling.
+- Prioritize urgent public issues.
+- Enable authorities to manage and assign complaints efficiently.
+- Maintain a history of complaint status changes.
+- Provide citizens with clear progress updates.
+
+---
+
+## ✨ Key Features
+
+### 👤 Citizen Portal
+- User registration and login.
+- Submit complaints with category, location, description, and photo.
+- Automatic priority assignment based on complaint category.
+- Track complaint status and progress timeline.
+- View complaint history and resolution updates.
+- Receive SMS notifications when complaint statuses change.
+
+### 🛡️ Admin Dashboard
+- View total complaints and status statistics.
+- Filter and search complaints.
+- Review citizen details, contact numbers, locations, and uploaded photos.
+- Verify submitted complaints.
+- Override automatically assigned priorities.
+- Assign complaints to field staff.
+- Update complaint status and add resolution notes.
+- View complaint history.
+
+### 🧑‍🔧 Staff Workflow
+- Receive assigned complaints.
+- Update progress as work proceeds.
+- Support the complaint resolution process.
+
+### ⚡ Additional Features
+- Role-based access control.
+- JWT-based authentication.
+- Password hashing.
+- Priority-sorted complaint queue.
+- Image upload and storage.
+- SMS demo mode with optional Twilio integration.
+- Responsive, Tamil Nadu-inspired red and gold interface.
+
+---
+
+## 🧰 Technology Stack
+
+| Component | Technology |
 |---|---|
-| Electricity | **High** |
-| Water Supply | **High** |
-| Public Safety | **High** |
+| Frontend | HTML5, Tailwind CSS, Alpine.js |
+| Backend | Python, FastAPI |
+| Database | PostgreSQL |
+| ORM | SQLAlchemy |
+| Authentication | JWT, Passlib, bcrypt |
+| Data Validation | Pydantic |
+| File Uploads | Python Multipart |
+| Notifications | Twilio SMS API (optional) |
+| API Testing | FastAPI Swagger UI |
+| Version Control | Git and GitHub |
+
+---
+
+## 🏗️ System Architecture
+
+```text
+          ┌─────────────────────┐
+          │   Citizen / Admin   │
+          │       / Staff       │
+          └──────────┬──────────┘
+                     │
+                     ▼
+          ┌─────────────────────┐
+          │   Web Frontend      │
+          │ HTML, Tailwind CSS  │
+          │     Alpine.js       │
+          └──────────┬──────────┘
+                     │ HTTP / REST API
+                     ▼
+          ┌─────────────────────┐
+          │   FastAPI Backend   │
+          │ Auth and Complaint  │
+          │ Management Routers  │
+          └───────┬───────┬─────┘
+                  │       │
+                  ▼       ▼
+          ┌────────────┐ ┌────────────┐
+          │ PostgreSQL │ │ Image      │
+          │ Database   │ │ Storage    │
+          └────────────┘ └────────────┘
+                  │
+                  ▼
+          ┌─────────────────────┐
+          │ SMS Notifications   │
+          │ Demo / Twilio       │
+          └─────────────────────┘
+```
+
+---
+
+## 🔄 Complaint Workflow
+
+1. Citizen registers or logs in.
+2. Citizen submits a complaint with the required details and optional photo.
+3. The system assigns an initial priority based on the complaint category.
+4. Admin verifies the complaint.
+5. Admin assigns the complaint to a staff member.
+6. Staff and admin update the complaint status.
+7. The citizen receives status notifications.
+8. Admin records the resolution, and the citizen can review the complaint history.
+
+### Complaint Statuses
+
+`Submitted → Verified → Assigned → In Progress → Resolved → Closed`
+
+---
+
+## 📊 Priority Management
+
+| Complaint Category | Default Priority |
+|---|---|
+| Electricity | High |
+| Water Supply | High |
+| Public Safety | High |
 | Road / Pothole | Medium |
 | Garbage / Sanitation | Medium |
-| Sewage / Drainage | M edium |
+| Sewage / Drainage | Medium |
 | Streetlight | Low |
 | Noise Pollution | Low |
 | Others | Low |
 
-Auto-assigned on submission; admins can override it at verification time. The admin
-queue is always sorted High → Medium → Low.
+Administrators can override the default priority when necessary.
 
-## Tech stack
+---
 
-- **Backend:** Python, FastAPI, SQLAlchemy ORM, PostgreSQL, JWT auth (python-jose),
-  bcrypt password hashing (passlib), file uploads (python-multipart), SMS (Twilio, optional)
-- **Frontend:** Plain HTML + Tailwind CSS (CDN) + Alpine.js (CDN) — no build step needed
-- **Roles:** Citizen, Admin, Staff (field staff complaints get assigned to)
+## 📁 Project Structure
 
-## Project structure
-
-```
+```text
 civiccare/
 ├── backend/
-│   ├── main.py                 # FastAPI app entrypoint, serves frontend + API + uploads
-│   ├── config.py                # env-based settings (DB, JWT, Twilio, uploads)
-│   ├── database.py              # SQLAlchemy engine/session
-│   ├── models.py                # User, Complaint (+ image_path), ComplaintHistory, priority map
-│   ├── schemas.py                # Pydantic request/response models
-│   ├── auth.py                    # JWT + password hashing + role guards
-│   ├── notifications.py           # SMS on status change / resolve (Twilio, with demo-mode fallback)
-│   ├── seed.py                     # creates demo admin/staff/citizen + sample complaints
+│   ├── main.py
+│   ├── config.py
+│   ├── database.py
+│   ├── models.py
+│   ├── schemas.py
+│   ├── auth.py
+│   ├── notifications.py
+│   ├── seed.py
 │   ├── requirements.txt
 │   ├── .env.example
-│   ├── uploads/                    # citizen-submitted complaint photos land here
+│   ├── uploads/
 │   └── routers/
-│       ├── auth_router.py         # /api/auth/register, /login, /me
-│       └── complaints_router.py   # citizen + admin complaint endpoints, image upload, SMS triggers
-└── frontend/
-    ├── index.html                 # login / register (role select)
-    ├── citizen_dashboard.html     # submit complaint (+ photo) + track status timeline
-    ├── admin_dashboard.html       # priority-sorted queue: phone/location/photo, verify/assign/resolve
-    ├── assets/logo.svg            # original Tamil Nadu-style civic seal
-    └── js/api.js                  # shared fetch wrapper (JSON + multipart), auth storage, badges
+│       ├── auth_router.py
+│       └── complaints_router.py
+│
+├── frontend/
+│   ├── index.html
+│   ├── citizen_dashboard.html
+│   ├── admin_dashboard.html
+│   ├── assets/
+│   │   └── logo.svg
+│   ├── css/
+│   │   └── theme.css
+│   └── js/
+│       └── api.js
+│
+├── .gitignore
+├── LICENSE
+└── README.md
 ```
 
-## Setup
+*The tree above illustrates the expected structure; adjust it to match the files actually present in your repository.*
 
-### 1. Create the PostgreSQL database
+---
+
+## 🚀 Installation and Setup
+
+### Prerequisites
+
+Install the following before running the project:
+
+- Python 3.10 or a compatible version required by your dependencies.
+- PostgreSQL.
+- Git.
+- A modern web browser.
+
+### 1. Clone the repository
+
+```bash
+git clone YOUR_REPOSITORY_URL
+cd civiccare
+```
+
+Replace `YOUR_REPOSITORY_URL` with your actual GitHub repository URL.
+
+### 2. Create the PostgreSQL database
+
+Open pgAdmin or the PostgreSQL terminal and run:
 
 ```sql
 CREATE DATABASE civiccare_db;
@@ -109,102 +240,184 @@ CREATE USER civiccare_user WITH PASSWORD 'civiccare_pass';
 GRANT ALL PRIVILEGES ON DATABASE civiccare_db TO civiccare_user;
 ```
 
-### 2. Configure environment
+Ensure the configured database user has the required permissions.
+
+### 3. Configure environment variables
+
+Navigate to the backend directory:
 
 ```bash
 cd backend
-cp .env.example .env
-# edit .env if your DATABASE_URL / SECRET_KEY differ, and optionally add Twilio creds
 ```
 
-### 3. Install dependencies
+Create a `.env` file based on `.env.example` and configure your database URL and secret key.
+
+Example configuration:
+
+```env
+DATABASE_URL=postgresql://civiccare_user:civiccare_pass@localhost:5432/civiccare_db
+SECRET_KEY=replace_with_a_secure_random_secret
+```
+
+Configure Twilio credentials only if you want to enable real SMS delivery. Keep `.env` private.
+
+### 4. Create a virtual environment
+
+**Windows PowerShell:**
+
+```powershell
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+```
+
+**Linux / macOS:**
 
 ```bash
 python -m venv venv
-source venv/bin/activate      # Windows: venv\Scripts\activate
-pip install -r requirements.txt
+source venv/bin/activate
 ```
 
-### 4. Seed demo data (creates tables + demo accounts + sample complaints)
+### 5. Install dependencies
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+### 6. Initialize demo data
 
 ```bash
 python seed.py
 ```
 
-This prints three demo logins:
-- **Admin:** admin@civiccare.local / Admin@123
-- **Staff:** staff@civiccare.local / Staff@123
-- **Citizen:** citizen@civiccare.local / Citizen@123
+This initializes the database tables and demo data according to the project's seed script.
 
-### 5. Run the server
+### 7. Start the backend server
 
 ```bash
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-- On the same computer: open **http://localhost:8000**
-- On your phone (same Wi‑Fi as the computer running the server): find the computer's
-  LAN IP (e.g. `192.168.1.23` via `ipconfig` / `ifconfig`) and open
-  **http://192.168.1.23:8000** in the phone's browser — do **not** open the HTML file
-  itself.
-- Interactive API docs: **http://localhost:8000/docs**
+### 8. Open the application
 
-## Demo walkthrough
+| Resource | URL |
+|---|---|
+| CivicCare application | http://localhost:8000 |
+| API documentation | http://localhost:8000/docs |
+| Alternative API docs | http://localhost:8000/redoc |
 
-1. Open the app URL → log in as the **citizen** demo account.
-2. Click **+ New Complaint** → pick "Electricity" (auto-tagged High priority) → attach
-   a photo → submit.
-3. Log out, log back in as **admin**. The stat cards show total/high-priority/in-progress/
-   resolved counts. The queue shows the complaint at the top with the citizen's name,
-   phone number, location, and photo thumbnail.
-4. Click it → **Verify** → **Assign** to the demo staff member → **Mark In Progress** →
-   **Resolve** with notes. Check the server console/log — you'll see `[SMS DEMO MODE]`
-   lines showing exactly what would have been texted to the citizen at each step.
-5. Log back in as the citizen → open the complaint → the timeline shows every status
-   change with timestamps.
-
-## Notes for your viva / presentation
-
-- `Base.metadata.create_all()` auto-creates tables for this academic project; use
-  Alembic migrations in a production system.
-- Passwords are hashed with bcrypt, never stored in plain text.
-- JWT tokens carry `sub` (user id) and `role`; `require_role()` in `auth.py` is the
-  RBAC guard used on every protected endpoint.
-- `ComplaintHistory` is the audit trail powering "Citizen Tracks Complaint → View
-  Status" from the flowchart, and is what each SMS message is built from.
-- SMS is abstracted behind `notifications.py` so you can demo the whole flow without
-  a paid account, then flip it to live mode by filling in three environment variables.
-
+**Important:** Open the application through the running FastAPI server, not by opening `index.html` directly.
 
 ---
 
-## Latest UI + bug-fix release
+## 🔐 Demo Credentials
 
-**Bug fixes**
-- Login showed `[object Object]`: FastAPI sends validation errors as a list of objects and the UI printed them raw.
-  `frontend/js/api.js → errorMessageFrom()` now turns any error shape into readable text.
-- Root cause of that login failure: `EmailStr` rejected the demo `.local` addresses. `schemas.py` now uses a plain
-  email-shape check (`EmailField`), and the `pydantic[email]` extra is no longer required.
-- A wrong password (HTTP 401 on login) used to trigger the "session expired" redirect. It now shows inline;
-  only 401s on *protected* calls send you back to the login page.
+Use these accounts only after successfully initializing the demo database.
 
-**Interface improvements** (all in `frontend/`, shared styles in `css/theme.css`)
-- Radio-style choices everywhere: register role cards, complaint-list filter, admin status filter, admin priority override.
-- Down-arrow dropdowns that reveal details: category picker (each option expands to "typical issues"), admin staff picker
-  (name + email), admin category filter, priority explainer on the login page, collapsible History and Citizen & location sections.
-- Citizen progress tracker (Submitted → Verified → Assigned → In Progress → Resolved), toast confirmations,
-  admin search box, show/hide password, keyboard-accessible controls (real radio inputs stay in the DOM).
+| Role | Email | Password |
+|---|---|---|
+| Admin | `admin@civiccare.local` | `Admin@123` |
+| Staff | `staff@civiccare.local` | `Staff@123` |
+| Citizen | `citizen@civiccare.local` | `Citizen@123` |
 
-## How to run (quick)
+These are local demonstration credentials, not production accounts. Never use the demo passwords in a deployed application.
 
-```bash
-# 1. PostgreSQL: create db + user (see Setup above)
-cd backend
-cp .env.example .env
-python -m venv venv && source venv/bin/activate      # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-python seed.py                                       # tables + demo accounts + sample complaints
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-# 2. open http://localhost:8000  (never the .html file directly)
-```
-Logins: admin@civiccare.local / Admin@123 · staff@civiccare.local / Staff@123 · citizen@civiccare.local / Citizen@123
+---
+
+## 📡 API Documentation
+
+CivicCare uses FastAPI to expose REST endpoints for authentication and complaint management.
+
+Explore the available endpoints through Swagger UI:
+
+**http://localhost:8000/docs**
+
+The API includes functionality for:
+
+- User registration and login.
+- Retrieving the authenticated user's profile.
+- Submitting and viewing complaints.
+- Uploading complaint images.
+- Administrative complaint verification and assignment.
+- Updating complaint statuses.
+- Tracking complaint history.
+
+The exact endpoint methods and permissions are defined by the backend routers.
+
+---
+
+## 🔒 Security
+
+Security-related features implemented in the project include:
+
+- Password hashing instead of storing plaintext passwords.
+- JWT-based authentication.
+- Role-based access control for protected endpoints.
+- Request validation using Pydantic.
+- Restricted access to administrative operations.
+
+**Before deployment:** Configure strong secrets, protect uploaded files, validate file types and sizes, restrict CORS origins, use HTTPS, and replace demo credentials. Review authentication and authorization logic before exposing the application publicly.
+
+---
+
+## 🛠️ Troubleshooting
+
+| Problem | Suggested Solution |
+|---|---|
+| `ModuleNotFoundError` | Activate the virtual environment and install `requirements.txt`. |
+| Database connection failed | Check PostgreSQL status, database credentials, port, and `.env`. |
+| `Address already in use` | Run the application on another available port. |
+| Login or registration fails | Check server logs, validation errors, and database configuration. |
+| Frontend cannot reach backend | Start Uvicorn and open the server URL. |
+| SMS is not delivered | Check demo mode or configure valid Twilio credentials. |
+
+---
+
+## 🚧 Future Enhancements
+
+- Interactive map integration for complaint locations.
+- Email and WhatsApp notifications.
+- Multilingual support, including Tamil and English.
+- Complaint analytics and monthly reports.
+- Real-time notifications.
+- Duplicate complaint detection.
+- Department-wise performance tracking.
+- Deployment with HTTPS and production-grade configuration.
+- Automated testing and CI/CD integration.
+
+---
+
+## 👨‍💻 Author
+
+**Sujith S**  
+B.E. Computer Science and Engineering Student
+
+- GitHub: [@Sujith-S05](https://github.com/Sujith-S05)
+- LinkedIn: [Sujith S](https://www.linkedin.com/in/sujith14s/)
+
+Interested in software development, web technologies, and building practical solutions to real-world problems.
+
+---
+
+## 🤝 Contributing
+
+Contributions, suggestions, and bug reports are welcome.
+
+1. Fork the repository.
+2. Create a feature branch.
+3. Make your changes and test them.
+4. Commit and push your changes.
+5. Open a pull request describing your improvements.
+
+---
+
+## 📄 License
+
+This project is intended for academic and demonstration purposes.
+
+If you want others to reuse or modify the source code, choose an appropriate open-source license, such as the MIT License, and include its license file in the repository.
+
+---
+
+⭐ **If you find CivicCare useful, consider starring the repository!**
+
+*Built as an academic project to explore full-stack development and improve civic complaint management.*
